@@ -1,4 +1,5 @@
 import type { TerrainType } from "../types";
+import { cities } from "./cities";
 import { getProvinceRoadSurvey } from "./provinceRoads";
 import { getProvinceWaterSurvey } from "./provinceWater";
 import { PROVINCE_HEIGHT, PROVINCE_WIDTH } from "./terrain";
@@ -15,16 +16,7 @@ function setTile(map: ProvinceMap, x: number, y: number, terrain: TerrainType): 
   }
 }
 
-function mapWithTiles(tiles: Array<[number, number, TerrainType]>): ProvinceMap {
-  const map = emptyMap();
-  for (const [x, y, terrain] of tiles) {
-    setTile(map, x, y, terrain);
-  }
-  return map;
-}
-
-// Ajoute ici les vraies cartes terrain, province par province, quand elles seront relevées.
-// Chaque carte doit faire 13 lignes de 20 colonnes. Ne pas inventer les routes.
+// Cartes verrouillees depuis le PDF utilisateur "Provinces Coordonnes krland _".
 export const provinceMapOverrides: Record<string, ProvinceMap> = {};
 
 export function getProvinceMap(province: string): ProvinceMap {
@@ -34,17 +26,19 @@ export function getProvinceMap(province: string): ProvinceMap {
   const mapWithSurveys = map.map((row) => [...row]);
 
   if (roadSurvey) {
-    for (const [x, y] of [...roadSurvey.roadTiles, ...roadSurvey.roadTilesToConfirm]) {
+    for (const [x, y] of roadSurvey.roadTiles) {
       setTile(mapWithSurveys, x, y, "route");
+    }
+  }
+
+  for (const city of cities) {
+    if (city.province === province) {
+      setTile(mapWithSurveys, city.x, city.y, "route");
     }
   }
 
   if (waterSurvey) {
     for (const [x, y] of waterSurvey.waterTiles) {
-      setTile(mapWithSurveys, x, y, "mer");
-    }
-
-    for (const [x, y] of waterSurvey.waterTilesToConfirm) {
       if (mapWithSurveys[y]?.[x] !== "route") {
         setTile(mapWithSurveys, x, y, "mer");
       }
