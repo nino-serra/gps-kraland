@@ -3,3 +3,7 @@ dist/
 *.log
 vite-dev.*.log
 .DS_Store
+.tools/
+gh.zip
+auth-github.cmd
+.gh-upload.json
