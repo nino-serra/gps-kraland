@@ -23,13 +23,11 @@ Ces coordonnees du site ne doivent pas etre injectees directement dans le GPS ta
 ## Regle de travail
 
 - Les villes deja fournies restent la reference pour les coordonnees locales.
-- Les captures du site servent de support visuel.
-- Les routes passent dans `src/data/provinceRoads.ts` uniquement quand leur position locale est confirmee.
-- Les cases douteuses vont dans `roadTilesToConfirm`.
-- Les terrains inconnus restent `unknown`.
+- Les routes verrouillees passent dans `src/data/provinceRoads.ts`.
+- Les cases d'eau verrouillees passent dans `src/data/provinceWater.ts`.
+- Les cases ville sont aussi traitees comme route dans `src/data/provinceMaps.ts`.
 
 ## Statuts
 
 - `confirmed` : utilisable par le moteur de routage.
-- `to-confirm` : visible dans les notes, non utilise pour calculer un trajet.
-- `unknown` : terrain ou route non releve.
+- `locked` : issu de la version PDF utilisateur verrouillee.
