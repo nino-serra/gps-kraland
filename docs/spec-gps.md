@@ -63,7 +63,8 @@ Implementation actuelle :
 ## V1
 
 - Le calcul fonctionne dans une province et sur la grille globale construite depuis `provinceOrigins`.
-- Les cartes de terrain ne sont pas inventees.
+- Les cartes de route et d'eau sont verrouillees depuis le PDF utilisateur `Provinces Coordonnes krland _.pdf`.
+- Les cases ville sont aussi traitees comme des cases `route` pour simplifier et fiabiliser le routage terrestre.
 - Les liens inter-provinces sont derives de la grille des provinces dans `src/data/provinceLinks.ts`; le routage global franchit une frontiere seulement si ce lien de province est actif.
 - Pour les modes terrestres, une case `route` ou `pont` peut servir de portail vers une case `route` ou `pont` d'une province voisine active, afin de representer les routes inter-provinces meme quand la sortie visible n'est pas exactement sur la case de bordure.
 - Australine est conservee dans la base, mais `routing: false`.
