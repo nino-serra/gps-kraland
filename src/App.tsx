@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { City, PathResult, Position, TerrainType, TravelMode } from "./types";
 import { cities, cityLabel } from "./data/cities";
 import { estimateEssenceUnitsFromTravelMinutes } from "./data/fuel";
-import { provinces } from "./data/provinces";
-import { getProvinceRoadSurvey } from "./data/provinceRoads";
-import { getProvinceWaterSurvey } from "./data/provinceWater";
 import { vehicleList, vehicles } from "./data/vehicles";
 import { getProvinceMap } from "./data/provinceMaps";
 import { getSurfaceType, PROVINCE_HEIGHT, PROVINCE_WIDTH } from "./data/terrain";
@@ -20,22 +17,6 @@ function cityKey(city: City): string {
 
 function positionKey(position: Position): string {
   return `${position.x}:${position.y}`;
-}
-
-function keyToPosition(key: string): Position {
-  const [x, y] = key.split(":").map(Number);
-  return { x, y };
-}
-
-function sortPositions(positions: Position[]): Position[] {
-  return [...positions].sort((a, b) => a.y - b.y || a.x - b.x);
-}
-
-function formatPositionList(positions: Position[]): string {
-  if (!positions.length) {
-    return "[]";
-  }
-  return `[\n${positions.map((position) => `  [${position.x}, ${position.y}],`).join("\n")}\n]`;
 }
 
 function getCityByKey(value: string): City | undefined {
@@ -67,234 +48,6 @@ type RouteStep = {
   city?: City;
 };
 
-type EditableSurface = "terre" | "eau" | "route";
-type ManualProvinceMap = Record<string, EditableSurface>;
-type ManualMapsByProvince = Record<string, ManualProvinceMap>;
-
-const MANUAL_MAPS_STORAGE_KEY = "gps-kralandais-manual-maps-v1";
-const VALIDATED_PROVINCES_STORAGE_KEY = "gps-kralandais-validated-provinces-v1";
-const VALIDATED_SOURCE_NOTE = "Valide manuellement depuis l'editeur province.";
-
-function editableSurfaceFromTerrain(terrain: TerrainType): EditableSurface {
-  if (terrain === "route" || terrain === "pont") return "route";
-  if (terrain === "mer" || terrain === "riviere") return "eau";
-  return "terre";
-}
-
-function terrainFromEditableSurface(surface: EditableSurface): TerrainType {
-  if (surface === "route") return "route";
-  if (surface === "eau") return "mer";
-  return "terre";
-}
-
-function createManualMapFromProvince(province: string): ManualProvinceMap {
-  const sourceMap = getProvinceMap(province);
-  const draft: ManualProvinceMap = {};
-  for (let y = 0; y < PROVINCE_HEIGHT; y += 1) {
-    for (let x = 0; x < PROVINCE_WIDTH; x += 1) {
-      draft[`${x}:${y}`] = editableSurfaceFromTerrain(sourceMap[y]?.[x] ?? "terre");
-    }
-  }
-  return draft;
-}
-
-function isSavedInSource(province: string): boolean {
-  return getProvinceWaterSurvey(province)?.notes === VALIDATED_SOURCE_NOTE && getProvinceRoadSurvey(province)?.notes === VALIDATED_SOURCE_NOTE;
-}
-
-function readManualMaps(): ManualMapsByProvince {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(window.localStorage.getItem(MANUAL_MAPS_STORAGE_KEY) ?? "{}") as ManualMapsByProvince;
-  } catch {
-    return {};
-  }
-}
-
-function readValidatedProvinces(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    return new Set(JSON.parse(window.localStorage.getItem(VALIDATED_PROVINCES_STORAGE_KEY) ?? "[]") as string[]);
-  } catch {
-    return new Set();
-  }
-}
-
-function formatSurfaceExport(label: string, positions: Position[]): string {
-  return `${label}: ${formatPositionList(sortPositions(positions))},`;
-}
-
-function ValidationPanel() {
-  const [validationProvince, setValidationProvince] = useState(provinces[0]?.name ?? "Crab Key");
-  const [paintSurface, setPaintSurface] = useState<EditableSurface>("terre");
-  const [manualMaps, setManualMaps] = useState<ManualMapsByProvince>(() => readManualMaps());
-  const [validatedProvinces, setValidatedProvinces] = useState<Set<string>>(() => readValidatedProvinces());
-  const provinceCities = cities.filter((city) => city.province === validationProvince);
-  const provinceIndex = provinces.findIndex((province) => province.name === validationProvince);
-  const isProvinceValidated = validatedProvinces.has(validationProvince);
-  const shouldUseSavedSource = isProvinceValidated && isSavedInSource(validationProvince);
-  const currentManualMap = shouldUseSavedSource ? createManualMapFromProvince(validationProvince) : manualMaps[validationProvince] ?? createManualMapFromProvince(validationProvince);
-  const manualPositions = useMemo(() => {
-    const groups: Record<EditableSurface, Position[]> = {
-      terre: [],
-      eau: [],
-      route: [],
-    };
-    for (let y = 0; y < PROVINCE_HEIGHT; y += 1) {
-      for (let x = 0; x < PROVINCE_WIDTH; x += 1) {
-        groups[currentManualMap[`${x}:${y}`] ?? "terre"].push({ x, y });
-      }
-    }
-    return groups;
-  }, [currentManualMap]);
-  const exportText = [
-    `province: "${validationProvince}",`,
-    formatSurfaceExport("terreTiles", manualPositions.terre),
-    formatSurfaceExport("waterTiles", manualPositions.eau),
-    formatSurfaceExport("roadTiles", manualPositions.route),
-  ].join("\n");
-
-  function saveManualMaps(nextMaps: ManualMapsByProvince): void {
-    setManualMaps(nextMaps);
-    window.localStorage.setItem(MANUAL_MAPS_STORAGE_KEY, JSON.stringify(nextMaps));
-  }
-
-  function saveValidatedProvinces(nextValidated: Set<string>): void {
-    setValidatedProvinces(nextValidated);
-    window.localStorage.setItem(VALIDATED_PROVINCES_STORAGE_KEY, JSON.stringify([...nextValidated]));
-  }
-
-  function setTileSurface(key: string): void {
-    if (isProvinceValidated) return;
-    saveManualMaps({
-      ...manualMaps,
-      [validationProvince]: {
-        ...currentManualMap,
-        [key]: paintSurface,
-      },
-    });
-  }
-
-  function resetProvince(): void {
-    if (isProvinceValidated) return;
-    const nextMaps = { ...manualMaps };
-    delete nextMaps[validationProvince];
-    const nextValidated = new Set(validatedProvinces);
-    nextValidated.delete(validationProvince);
-    saveManualMaps(nextMaps);
-    saveValidatedProvinces(nextValidated);
-  }
-
-  function goToProvince(offset: number): void {
-    const nextIndex = (provinceIndex + offset + provinces.length) % provinces.length;
-    setValidationProvince(provinces[nextIndex].name);
-  }
-
-  function validateProvince(): void {
-    const nextValidated = new Set(validatedProvinces);
-    nextValidated.add(validationProvince);
-    saveValidatedProvinces(nextValidated);
-    goToProvince(1);
-  }
-
-  function editProvince(): void {
-    const nextValidated = new Set(validatedProvinces);
-    nextValidated.delete(validationProvince);
-    saveValidatedProvinces(nextValidated);
-  }
-
-  return (
-    <section className="validation card">
-      <div className="section-title">
-        <div>
-          <h2>Edition province</h2>
-          <p className="section-note">Choisis Terre, Eau ou Route, puis clique les cases. Quand la province est finie, valide et passe a la suivante.</p>
-        </div>
-        <label className="compact-field">
-          Province
-          <select value={validationProvince} onChange={(event) => setValidationProvince(event.target.value)}>
-            {provinces.map((province) => (
-              <option key={province.name} value={province.name}>
-                {validatedProvinces.has(province.name) ? "OK - " : ""}{province.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="validation-layout">
-        <div>
-          <div className="paint-toolbar" role="group" aria-label="Type de case a peindre">
-            <button type="button" className={paintSurface === "terre" ? "active paint-land" : "paint-land"} onClick={() => setPaintSurface("terre")}>Terre</button>
-            <button type="button" className={paintSurface === "eau" ? "active paint-water" : "paint-water"} onClick={() => setPaintSurface("eau")}>Eau</button>
-            <button type="button" className={paintSurface === "route" ? "active paint-road" : "paint-road"} onClick={() => setPaintSurface("route")}>Route</button>
-          </div>
-          <div className="iso-map validation-map" aria-label={`Validation locale de ${validationProvince}`}>
-            <svg className="province-boundary" aria-hidden="true" viewBox="0 0 840 430">
-              <polygon points="332,12 812,252 500,408 20,168" />
-            </svg>
-            {Array.from({ length: PROVINCE_HEIGHT }, (_, y) =>
-              Array.from({ length: PROVINCE_WIDTH }, (_, x) => {
-                const key = `${x}:${y}`;
-                const city = provinceCities.find((item) => item.x === x && item.y === y);
-                const label = city ? city.city : key;
-                const surface = currentManualMap[key] ?? "terre";
-                const terrain = terrainFromEditableSurface(surface);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`tile tile-button terrain-${terrain} surface-${getSurfaceType(terrain)} manual-${surface} ${city ? "city" : ""}`}
-                    style={{
-                      left: `${(x - y) * 24 + 308}px`,
-                      top: `${(x + y) * 12 + 12}px`,
-                    }}
-                    title={`${label} - ${terrain} - ${key}`}
-                    disabled={isProvinceValidated}
-                    onClick={() => setTileSurface(key)}
-                  >
-                    <span>{city ? city.city.slice(0, 2) : key}</span>
-                  </button>
-                );
-              }),
-            )}
-          </div>
-          <div className="legend">
-            <span><i className="legend-land" /> terre</span>
-            <span><i className="legend-water" /> eau</span>
-            <span><i className="legend-route" /> route</span>
-            <span><i className="legend-city" /> ville</span>
-          </div>
-        </div>
-
-        <aside className="validation-side">
-          <div className={`province-status ${isProvinceValidated ? "done" : ""}`}>
-            <strong>{provinceIndex + 1} / {provinces.length}</strong>
-            <span>{isProvinceValidated ? "Province validee et verrouillee" : "Province en cours"}</span>
-          </div>
-          <div className="stats-grid">
-            <div><strong>{manualPositions.terre.length}</strong><span>terre</span></div>
-            <div><strong>{manualPositions.eau.length}</strong><span>eau</span></div>
-            <div><strong>{manualPositions.route.length}</strong><span>route</span></div>
-            <div><strong>{validatedProvinces.size}</strong><span>provinces validees</span></div>
-          </div>
-
-          <div className="validation-actions">
-            <button type="button" className="secondary-button" onClick={() => goToProvince(-1)}>Precedente</button>
-            <button type="button" className="secondary-button" onClick={() => goToProvince(1)}>Suivante</button>
-            <button type="button" onClick={validateProvince} disabled={isProvinceValidated}>Valider province</button>
-            {isProvinceValidated && <button type="button" className="secondary-button" onClick={editProvince}>Corriger province</button>}
-            <button type="button" className="danger-button" onClick={resetProvince} disabled={isProvinceValidated}>Reinitialiser</button>
-          </div>
-
-          <h3>Export province</h3>
-          <textarea readOnly value={exportText} aria-label="Export des cases terre eau route" />
-        </aside>
-      </div>
-    </section>
-  );
-}
-
 export default function App() {
   const routableCities = useMemo(() => cities.filter((city) => city.routing), []);
   const cityOptions = useMemo(() => [...cities].sort((a, b) => cityLabel(a).localeCompare(cityLabel(b), "fr")), []);
@@ -312,8 +65,6 @@ export default function App() {
   const selectedProvince = startCity?.province ?? cities[0].province;
   const provinceMap = getProvinceMap(selectedProvince);
   const provinceCities = cities.filter((city) => city.province === selectedProvince);
-  const roadSurvey = getProvinceRoadSurvey(selectedProvince);
-  const toConfirmKeys = new Set(roadSurvey?.roadTilesToConfirm.map(([x, y]) => `${x}:${y}`) ?? []);
   const startGlobal = toGlobalCoordinates(startCity.province, startCity);
   const endGlobal = toGlobalCoordinates(endCity.province, endCity);
   const selectedVehicle = vehicles[mode];
@@ -636,7 +387,6 @@ export default function App() {
         </aside>
       </section>
 
-      <ValidationPanel />
     </main>
   );
 }
