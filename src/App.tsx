@@ -237,7 +237,7 @@ export default function App() {
           <h1>Cyphia Futé <span>GPS Kraland</span></h1>
         </div>
         <div className="hero-side">
-          <img className="gps-mascot" src={new URL("./assets/mascotte.png", import.meta.url).href} alt="Mascotte Cyphia" width="94" height="180" />
+          <img className="gps-mascot" src={new URL("./assets/mascotte.png", import.meta.url).href} alt="Mascotte Cyphia" width="1254" height="1254" />
           <div className="hero-card">
             <span>Province active</span>
             <strong>{selectedProvince}</strong>

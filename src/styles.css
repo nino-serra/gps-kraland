@@ -26,7 +26,7 @@ h1 span { display: block; font-size: 1.25rem; line-height: 1.4; color: var(--ink
 .hero-card { min-width: 0; width: 180px; display: grid; gap: 5px; border-left: 2px solid var(--violet); padding-left: 16px; }
 .hero-card span { color: var(--muted); font-size: 0.78rem; }
 .hero-card strong { color: var(--violet); font-size: 1.2rem; overflow-wrap: anywhere; }
-.gps-mascot { width: 72px; height: 138px; object-fit: contain; flex-shrink: 0; image-rendering: pixelated; border-radius: 8px; transform-origin: 50% 85%; animation: mascot-idle 3s ease-in-out infinite; }
+.gps-mascot { width: 72px; height: 138px; object-fit: cover; object-position: 45% center; flex-shrink: 0; transform-origin: 50% 85%; animation: mascot-idle 3s ease-in-out infinite; }
 @keyframes mascot-idle { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-5px) rotate(1deg); } }
 @media (prefers-reduced-motion: reduce) { .gps-mascot { animation: none; } }
 .card { min-width: 0; }
