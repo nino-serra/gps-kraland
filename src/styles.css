@@ -25,7 +25,7 @@ button, select { font: inherit; }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 240px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 22px;
   align-items: end;
   margin-bottom: 20px;
@@ -75,17 +75,46 @@ h1 {
 .hero-card span { color: #a9a0b8; font-size: 0.86rem; }
 .hero-card strong { color: #b69cff; font-size: 1.4rem; }
 
-.card { padding: 18px; }
+.hero-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hero-side .hero-card { width: 200px; overflow-wrap: anywhere; }
+
+.gps-mascot {
+  width: 94px;
+  height: 180px;
+  flex-shrink: 0;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transform-origin: 50% 85%;
+  animation: mascot-idle 3s ease-in-out infinite;
+}
+
+@keyframes mascot-idle {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-5px) rotate(1deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gps-mascot { animation: none; }
+}
+
+.card { min-width: 0; padding: 18px; }
 
 .controls {
   display: grid;
-  grid-template-columns: 1fr 1fr 260px auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 260px auto;
   gap: 14px;
   align-items: end;
   margin-bottom: 20px;
 }
 
 label {
+  min-width: 0;
   display: grid;
   gap: 8px;
   color: #f1ecff;
@@ -123,6 +152,7 @@ button:hover { background: #6c47dc; }
 
 .section-title {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 16px;
   align-items: center;

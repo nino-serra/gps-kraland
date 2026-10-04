@@ -12,7 +12,7 @@ const ISO_TILE_X = 24;
 const ISO_TILE_Y = 12;
 
 function cityKey(city: City): string {
-  return `${city.empire}|${city.province}|${city.city}`;
+  return `${city.province}|${city.city}`;
 }
 
 function positionKey(position: Position): string {
@@ -216,9 +216,12 @@ export default function App() {
             Calcul d'itinéraire sur grille Kraland, avec routes, terres et cases d'eau séparées pour préparer les trajets terrestres et maritimes.
           </p>
         </div>
-        <div className="hero-card">
-          <span>Province active</span>
-          <strong>{selectedProvince}</strong>
+        <div className="hero-side">
+          <img className="gps-mascot" src={new URL("./assets/mascotte.png", import.meta.url).href} alt="Mascotte Cyphia" width="94" height="180" />
+          <div className="hero-card">
+            <span>Province active</span>
+            <strong>{selectedProvince}</strong>
+          </div>
         </div>
       </header>
 
@@ -330,10 +333,6 @@ export default function App() {
                     ? "Animal"
                     : "Aucune"}
               </dd>
-            </div>
-            <div>
-              <dt>Réservoir</dt>
-              <dd>{selectedVehicle.energy === "essence" ? `${selectedVehicle.fuelCapacity ?? "?"} unités max` : "-"}</dd>
             </div>
             <div>
               <dt>Essence estimée</dt>

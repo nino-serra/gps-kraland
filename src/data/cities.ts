@@ -55,5 +55,5 @@ export const cities: City[] = [
 ];
 
 export function cityLabel(city: City): string {
-  return `${city.city} (${city.province}, ${city.empire})`;
+  return `${city.city} (${city.province})`;
 }

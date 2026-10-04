@@ -24,7 +24,7 @@ export const vehicles: Record<TravelMode, VehicleDefinition> = {
     family: "land",
     ...essence250,
   },
-  camionBidouille: { id: "camionBidouille", label: "Camion bidouillé", speed: 3.5, family: "land", ...essence250 },
+  camionBidouille: { id: "camionBidouille", label: "Camion bidouillé", speed: 2.5, family: "land", ...essence250 },
   voitureSportBidouille: {
     id: "voitureSportBidouille",
     label: "Voiture de sport bidouillée",
