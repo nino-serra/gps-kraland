@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { City, PathResult, Position, TerrainType, TravelMode } from "./types";
 import { cities, cityLabel } from "./data/cities";
 import { estimateEssenceUnitsFromTravelMinutes } from "./data/fuel";
@@ -66,6 +66,16 @@ export default function App() {
   const [result, setResult] = useState<PathResult | null>(null);
   const [message, setMessage] = useState<string>("Sélectionne deux villes pour lancer le calcul.");
   const [showCoordinates, setShowCoordinates] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapWidth, setMapWidth] = useState(0);
+
+  useEffect(() => {
+    const element = mapRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setMapWidth(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const startCity = getCityByKey(startKey)!;
   const endCity = getCityByKey(endKey)!;
@@ -145,6 +155,7 @@ export default function App() {
       scale: 1,
     };
   }, [isWorldView, result?.worldPath, provinceMap, provinceCities]);
+  const mapScale = Math.min(display.scale, mapWidth ? (mapWidth - 16) / display.layerWidth : display.scale);
   const localPathKeys = new Set(result?.path.map(positionKey) ?? []);
   const worldPathKeys = new Set(result?.worldPath?.map((position) => `${position.globalX}:${position.globalY}`) ?? []);
   const routeSteps = useMemo<RouteStep[]>(() => {
@@ -213,15 +224,17 @@ export default function App() {
     setMessage(pathResult.warning ?? "Trajet calculé.");
   }
 
+  function resetRoute() {
+    setResult(null);
+    setMessage("Prêt pour un nouveau trajet.");
+  }
+
   return (
     <main className="app-shell">
       <header className="hero">
         <div>
-          <p className="eyebrow">Prototype V1 · GPS inter-province</p>
-          <h1>Cyphia Futé GPS Kraland</h1>
-          <p className="subtitle">
-            Calcul d'itinéraire sur grille Kraland, avec routes, terres et cases d'eau séparées pour préparer les trajets terrestres et maritimes.
-          </p>
+          <p className="eyebrow">Le voyage commence ici</p>
+          <h1>Cyphia Futé <span>GPS Kraland</span></h1>
         </div>
         <div className="hero-side">
           <img className="gps-mascot" src={new URL("./assets/mascotte.png", import.meta.url).href} alt="Mascotte Cyphia" width="94" height="180" />
@@ -235,7 +248,7 @@ export default function App() {
       <section className="controls card">
         <label>
           Départ
-          <select value={startKey} onChange={(event) => setStartKey(event.target.value)}>
+          <select value={startKey} onChange={(event) => { setStartKey(event.target.value); resetRoute(); }}>
             {cityOptions.map((city) => (
               <option key={cityKey(city)} value={cityKey(city)} disabled={!city.routing}>
                 {cityLabel(city)}{!city.routing ? " - hors routage" : ""}
@@ -246,7 +259,7 @@ export default function App() {
 
         <label>
           Arrivée
-          <select value={endKey} onChange={(event) => setEndKey(event.target.value)}>
+          <select value={endKey} onChange={(event) => { setEndKey(event.target.value); resetRoute(); }}>
             {cityOptions.map((city) => (
               <option key={cityKey(city)} value={cityKey(city)} disabled={!city.routing}>
                 {cityLabel(city)}{!city.routing ? " - hors routage" : ""}
@@ -257,7 +270,7 @@ export default function App() {
 
         <label>
           Mode
-          <select value={mode} onChange={(event) => setMode(event.target.value as TravelMode)}>
+          <select value={mode} onChange={(event) => { setMode(event.target.value as TravelMode); resetRoute(); }}>
             {vehicleList.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
                 {vehicle.label} · x{vehicle.speed}
@@ -281,13 +294,14 @@ export default function App() {
               <span>{isWorldView ? "vue inter-province" : `${PROVINCE_WIDTH} x ${PROVINCE_HEIGHT}`}</span>
             </div>
           </div>
-          <div className={`iso-map ${isWorldView ? "world-view" : ""}`} aria-label={isWorldView ? "Carte globale du trajet" : `Carte locale de ${selectedProvince}`}>
+          <div ref={mapRef} className={`iso-map ${isWorldView ? "world-view" : ""}`} aria-label={isWorldView ? "Carte globale du trajet" : `Carte locale de ${selectedProvince}`}>
+            <div className="map-viewport" style={{ width: display.layerWidth * mapScale, height: display.layerHeight * mapScale }}>
             <div
               className="map-layer"
               style={{
                 width: `${display.layerWidth}px`,
                 height: `${display.layerHeight}px`,
-                transform: `scale(${display.scale})`,
+                transform: `scale(${mapScale})`,
               }}
             >
               {display.tiles.map((tile) => {
@@ -311,6 +325,7 @@ export default function App() {
                 );
               })}
             </div>
+            </div>
           </div>
           <div className="legend">
             <span><i className="legend-path" /> trajet</span>
@@ -322,8 +337,13 @@ export default function App() {
         </section>
 
         <aside className="card result-card">
-          <h2>Résultat</h2>
-          <p className="message">{message}</p>
+          <h2>Votre trajet</h2>
+          <p className="message" role="status">{message}</p>
+
+          <dl className="journey-metrics">
+            <div><dt>Temps estimé</dt><dd>{result?.ok ? formatTravelTime(result.totalMinutes) : "—"}</dd></div>
+            <div><dt>Essence estimée</dt><dd>{result?.ok && selectedVehicle.energy === "essence" ? `${essenceEstimate ?? "?"}` : "—"}<small>{selectedVehicle.energy === "essence" ? " unités" : " sans essence"}</small></dd></div>
+          </dl>
 
           <dl>
             <div><dt>Départ</dt><dd>{cityLabel(startCity)}</dd></div>
@@ -341,17 +361,6 @@ export default function App() {
                     : "Aucune"}
               </dd>
             </div>
-            <div>
-              <dt>Essence estimée</dt>
-              <dd>
-                {selectedVehicle.energy === "essence"
-                  ? result?.ok
-                    ? `${essenceEstimate ?? "?"} unités`
-                    : "Calculer un trajet"
-                  : "-"}
-              </dd>
-            </div>
-            <div><dt>Temps estimé</dt><dd>{result?.ok ? formatTravelTime(result.totalMinutes) : "Non calculé"}</dd></div>
             <div><dt>Cases traversées</dt><dd>{result?.ok ? (result.worldPath?.length ?? result.path.length) : "-"}</dd></div>
             <div>
               <dt>Provinces traversées</dt>

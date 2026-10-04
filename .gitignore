@@ -7,3 +7,5 @@ vite-dev.*.log
 gh.zip
 auth-github.cmd
 .gh-upload.json
+.sites-runtime/
+gh-auth*
