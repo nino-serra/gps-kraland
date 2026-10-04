@@ -19,6 +19,13 @@ function positionKey(position: Position): string {
   return `${position.x}:${position.y}`;
 }
 
+function formatTravelTime(totalMinutes: number): string {
+  if (totalMinutes < 60) return `${totalMinutes} min`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h${String(minutes).padStart(2, "0")}`;
+}
+
 function getCityByKey(value: string): City | undefined {
   return cities.find((city) => cityKey(city) === value);
 }
@@ -344,7 +351,7 @@ export default function App() {
                   : "-"}
               </dd>
             </div>
-            <div><dt>Temps estimé</dt><dd>{result?.ok ? `${result.totalMinutes} min` : "Non calculé"}</dd></div>
+            <div><dt>Temps estimé</dt><dd>{result?.ok ? formatTravelTime(result.totalMinutes) : "Non calculé"}</dd></div>
             <div><dt>Cases traversées</dt><dd>{result?.ok ? (result.worldPath?.length ?? result.path.length) : "-"}</dd></div>
             <div>
               <dt>Provinces traversées</dt>
