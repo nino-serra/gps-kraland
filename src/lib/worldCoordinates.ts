@@ -1,8 +1,9 @@
 import type { Position } from "../types";
 import { provinceOrigins } from "../data/provinceOrigins";
-import { PROVINCE_HEIGHT, PROVINCE_WIDTH } from "../data/terrain";
+import { isInsideProvince, PROVINCE_HEIGHT, PROVINCE_WIDTH } from "../data/terrain";
 
 export function toGlobalCoordinates(provinceName: string, local: Position): Position | null {
+  if (!Number.isInteger(local.x) || !Number.isInteger(local.y) || !isInsideProvince(local.x, local.y)) return null;
   const origin = provinceOrigins.find((item) => item.province === provinceName);
   if (!origin) return null;
 
@@ -13,6 +14,7 @@ export function toGlobalCoordinates(provinceName: string, local: Position): Posi
 }
 
 export function toLocalCoordinates(global: Position): { province: string; x: number; y: number } | null {
+  if (!Number.isInteger(global.x) || !Number.isInteger(global.y)) return null;
   for (const origin of provinceOrigins) {
     const x = global.x - origin.originX;
     const y = global.y - origin.originY;

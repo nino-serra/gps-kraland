@@ -1,7 +1,7 @@
 import type { City, PathResult, Position, TerrainType, TravelMode, WorldPosition } from "../types";
 import { getProvinceMap } from "../data/provinceMaps";
 import { provinceOrigins } from "../data/provinceOrigins";
-import { hasEnabledProvinceLink, provinceLinks } from "../data/provinceLinks";
+import { hasEnabledProvinceLink } from "../data/provinceLinks";
 import { getTerrainCost, isInsideProvince, PROVINCE_COST_MULTIPLIER, PROVINCE_HEIGHT, PROVINCE_WIDTH } from "../data/terrain";
 import { vehicles } from "../data/vehicles";
 import { toGlobalCoordinates } from "./worldCoordinates";
@@ -157,15 +157,17 @@ function getWorldTiles(): Map<string, WorldPosition> {
   return worldTiles;
 }
 
-function worldSegmentCost(from: WorldPosition, to: WorldPosition, mode: TravelMode): number | null {
+function worldSegmentCost(from: WorldPosition, to: WorldPosition, mode: TravelMode, maps: Map<string, ReturnType<typeof getProvinceMap>>): number | null {
   const vehicle = vehicles[mode];
-  const fromTerrain = getProvinceMap(from.province)[from.y]?.[from.x];
-  const toTerrain = getProvinceMap(to.province)[to.y]?.[to.x];
+  const fromTerrain = maps.get(from.province)?.[from.y]?.[from.x];
+  const toTerrain = maps.get(to.province)?.[to.y]?.[to.x];
   if (!fromTerrain || !toTerrain) return null;
 
   if (from.province !== to.province) {
     if (!hasEnabledProvinceLink(from.province, to.province)) return null;
+    if (vehicle.family === "land" && (!isRouteTerrain(fromTerrain) || !isRouteTerrain(toTerrain))) return null;
   }
+  if (Math.abs(from.globalX - to.globalX) + Math.abs(from.globalY - to.globalY) !== 1) return null;
 
   const fromCost = getTerrainCost(fromTerrain, vehicle.family);
   const toCost = getTerrainCost(toTerrain, vehicle.family);
@@ -176,34 +178,6 @@ function worldSegmentCost(from: WorldPosition, to: WorldPosition, mode: TravelMo
 
 function isRouteTerrain(terrain: TerrainType | undefined): boolean {
   return terrain === "route" || terrain === "pont";
-}
-
-function getProvinceRoutePortals(worldTiles: Map<string, WorldPosition>): Map<string, WorldPosition[]> {
-  const portals = new Map<string, WorldPosition[]>();
-
-  for (const link of provinceLinks) {
-    if (!link.enabled) continue;
-
-    const routeTiles: WorldPosition[] = [];
-    const targetMap = getProvinceMap(link.toProvince);
-    for (let y = 0; y < PROVINCE_HEIGHT; y += 1) {
-      for (let x = 0; x < PROVINCE_WIDTH; x += 1) {
-        if (!isRouteTerrain(targetMap[y]?.[x])) continue;
-
-        const targetGlobal = toGlobalCoordinates(link.toProvince, { x, y });
-        if (!targetGlobal) continue;
-
-        const targetTile = worldTiles.get(key(targetGlobal));
-        if (targetTile) {
-          routeTiles.push(targetTile);
-        }
-      }
-    }
-
-    portals.set(`${link.fromProvince}->${link.toProvince}`, routeTiles);
-  }
-
-  return portals;
 }
 
 export function findFastestWorldPath(startCity: City, endCity: City, mode: TravelMode): PathResult {
@@ -222,7 +196,7 @@ export function findFastestWorldPath(startCity: City, endCity: City, mode: Trave
   }
 
   const worldTiles = getWorldTiles();
-  const routePortals = getProvinceRoutePortals(worldTiles);
+  const maps = new Map(provinceOrigins.map(({ province }) => [province, getProvinceMap(province)]));
   const startTile = worldTiles.get(key(startGlobal));
   const endTile = worldTiles.get(key(endGlobal));
 
@@ -291,7 +265,7 @@ export function findFastestWorldPath(startCity: City, endCity: City, mode: Trave
       const nextTile = worldTiles.get(nextKey);
       if (!nextTile || visited.has(nextKey)) continue;
 
-      const cost = worldSegmentCost(currentTile, nextTile, mode);
+      const cost = worldSegmentCost(currentTile, nextTile, mode, maps);
       if (cost === null) continue;
 
       const newDistance = currentDistance + cost;
@@ -302,28 +276,6 @@ export function findFastestWorldPath(startCity: City, endCity: City, mode: Trave
       }
     }
 
-    const currentTerrain = getProvinceMap(currentTile.province)[currentTile.y]?.[currentTile.x];
-    if (vehicles[mode].family === "land" && isRouteTerrain(currentTerrain)) {
-      for (const link of provinceLinks) {
-        if (!link.enabled || link.fromProvince !== currentTile.province) continue;
-
-        const portalTiles = routePortals.get(`${link.fromProvince}->${link.toProvince}`) ?? [];
-        for (const nextTile of portalTiles) {
-          const nextKey = `${nextTile.globalX},${nextTile.globalY}`;
-          if (visited.has(nextKey)) continue;
-
-          const cost = worldSegmentCost(currentTile, nextTile, mode);
-          if (cost === null) continue;
-
-          const newDistance = currentDistance + cost;
-          if (newDistance < (distances.get(nextKey) ?? Infinity)) {
-            distances.set(nextKey, newDistance);
-            previous.set(nextKey, currentKey);
-            frontier.add(nextKey);
-          }
-        }
-      }
-    }
   }
 
   return {

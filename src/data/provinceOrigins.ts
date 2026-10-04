@@ -3,6 +3,6 @@ import { provinces } from "./provinces";
 
 export const provinceOrigins = provinces.map((province) => ({
   province: province.name,
-  originX: province.col * PROVINCE_WIDTH + (province.row % 2) * 10,
+  originX: province.col * PROVINCE_WIDTH + province.row * (PROVINCE_WIDTH / 2),
   originY: province.row * PROVINCE_HEIGHT,
 }));

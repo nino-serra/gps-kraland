@@ -19,4 +19,4 @@ Version verrouillee depuis le PDF utilisateur `Provinces Coordonnes krland _.pdf
 ## Routage
 
 Le routage inter-province utilise les liens actifs de `src/data/provinceLinks.ts`.
-Pour les modes terrestres, une case `route` ou `pont` peut servir de liaison vers une case `route` ou `pont` d'une province voisine active.
+Pour les modes terrestres, seules deux cases route ou pont voisines de part et d'autre de la frontiere peuvent servir de liaison. Le decalage horizontal cumule est de 10 cases par ligne de provinces.
